@@ -2,7 +2,7 @@ import argparse
 from collections import namedtuple, defaultdict
 from typing import Optional
 import pynetbox
-from configuration import config
+from configuration import config, discovery_tag
 from shared_objects import NB_DEFAULT_SITE
 from utils import format_slug
 from logger import log
@@ -57,8 +57,8 @@ def verify_prerequisites():
         ],
         'tags': [
             {
-                'name': 'Autodiscovered',
-                'slug': 'autodiscovered',
+                'name': discovery_tag,
+                'slug': format_slug(discovery_tag),
                 'description': 'Object automatically discovered by the netbox-device-autodiscovery script'
             },
             {
@@ -148,9 +148,10 @@ def create_or_update_nb_obj(obj_type: str, obj: dict) -> Optional[int]:
     existing_nb_obj = getattr(getattr(nb, api_app), api_model).get(**query_params)
     if existing_nb_obj:
         if obj_type in NETBOX_OBJECTS_DELETION_ORDER:  # Check whether the object supports tagging
-            if 'Autodiscovered' not in (tag.name for tag in existing_nb_obj.tags):
+            if discovery_tag not in (tag.name for tag in existing_nb_obj.tags):
                 # Don't modify existing objects without the 'Autodiscovered' tag
-                log.debug('NetBox %s object "%s" skipped because has no "Autodiscovered" tag', obj_type, obj[query_key])
+                log.debug(f'NetBox %s object "%s" skipped because has no "%s" tag',
+                          obj_type, obj[query_key], discovery_tag)
                 return None
         log.debug(
             "NetBox %s object '%s' already exists. Comparing values.",
@@ -191,7 +192,7 @@ def create_or_update_nb_obj(obj_type: str, obj: dict) -> Optional[int]:
 
 def cleanup():
     """Remove all auto discovered objects which support tagging from NetBox"""
-    autodiscovered_tag = nb.extras.tags.get(name='Autodiscovered')
+    autodiscovered_tag = nb.extras.tags.get(name=discovery_tag)
     for obj_type in NETBOX_OBJECTS_DELETION_ORDER:
         log.info("Initiated deletion of %s objects from NetBox", obj_type)
         api_app = NETBOX_OBJECTS_PROPERTIES[obj_type].api_app
@@ -237,7 +238,7 @@ def main():
         log.info(f'Module "{module_name}" execution completed')
 
     log.info('Initialized deletion of orphaned NetBox objects')
-    autodiscovered_tag = nb.extras.tags.get(name='Autodiscovered')
+    autodiscovered_tag = nb.extras.tags.get(name=discovery_tag)
     for obj_type in NETBOX_OBJECTS_DELETION_ORDER:
         log.info("Initiated deletion of %s objects from NetBox", obj_type)
         api_app = NETBOX_OBJECTS_PROPERTIES[obj_type].api_app
