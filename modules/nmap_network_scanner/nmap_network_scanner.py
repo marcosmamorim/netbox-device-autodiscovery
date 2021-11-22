@@ -95,12 +95,17 @@ class Module:
         log.info('Network scanning started')
         log.debug('Scan targets: %s', target_list)
         log.debug('Nmap arguments: %s', args2str(nmap_arguments))
-        try:
-            use_sudo = self.config.get('nmap_use_sudo', True)
-            scan_results = nmap.scan(args2str(target_list), arguments=args2str(nmap_arguments), sudo=use_sudo)
-            return scan_results['scan']
-        except Exception as e:
-            log.error(f"Critical error scanning {target_list} - {e}")
+        use_sudo = self.config.get('nmap_use_sudo', True)
+        scan_results = {}
+        for target in target_list:
+            log.debug(f"Scan Target: {target}")
+            try:
+                target_result = nmap.scan(target, arguments=args2str(nmap_arguments), sudo=use_sudo)
+                scan_results.update(target_result['scan'])
+            except Exception as e:
+                log.error(f"Critical error scanning {target} - {e}")
+                continue
+        return scan_results
 
 
     @staticmethod
